@@ -4,7 +4,6 @@ import cv2
 
 from csv_to_image import read_array, crop_array, imputate, plot_profile_polyn, min_max, convert_matrix_in_grey_scale
 
-
 config = cp.ConfigParser()
 config.read(r'config.ini')
 
