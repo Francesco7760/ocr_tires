@@ -1,28 +1,33 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from numba import njit, cuda, objmode
-from sklearn.impute import SimpleImputer
+from numba import njit
+
+from sklearn.impute import KNNImputer
+
+from irfpy.ica.baseline import als
+
+import pywt
 
 import configparser as cp
 
 config = cp.ConfigParser()
 config.read(r'config.ini')
 
-## read csv and return numpy's array and datframe
+###############################
+## READ CSV AND RETURN ARRAY ##
+###############################
 def read_array(PATH):
 
     ## lavora con csv
-    print("--- start read ---")
     df = pd.read_csv(PATH, sep=",",header=None)
     array = df.to_numpy()
 
-    print("--- end read ---")
+    return np.delete(array, [0,1]),array[0],array[1]
 
-    return array,df
+################
+## CROP IMAGE ##
+################
 
-## crops image from LFT_LIMIT to RIGHT_LIMIT
-## contains the writing area
 def crop_array(ARRAY, LFT_LIMIT, RGT_LIMIT, POINTS_IN_PROFILE,NUM_PROFILE):
     
     NUM_COL = RGT_LIMIT - LFT_LIMIT
@@ -32,26 +37,69 @@ def crop_array(ARRAY, LFT_LIMIT, RGT_LIMIT, POINTS_IN_PROFILE,NUM_PROFILE):
     
     return array_cropped,NUM_COL
 
-## impute the null values of array 
-def imputate (ARRAY):
-    meanImputer = SimpleImputer(missing_values=np.nan, strategy='median')
-    meanImputer.fit(ARRAY)
-    ## new_df = meanImputer.transform(df)
-    DF_avg = pd.DataFrame(meanImputer.transform(ARRAY)) 
-    array_imputate = DF_avg.to_numpy()
+###################################
+## IMPUTATE NULL VALUES OF ARRAY ##
+###################################
 
+def imputate (ARRAY):
+    
+    imputer = KNNImputer(n_neighbors=5, missing_values=np.nan, weights='distance')
+    array_imputate = imputer.fit_transform(ARRAY)
+    
     return array_imputate
 
-## fit polynomial on profile
-def plot_profile_polyn(PROFILE,DEG,X_ARRAY):
+#########################
+## BASELINE CORRECTION ##
+#########################
 
-    coef = np.polyfit(x,PROFILE,DEG)
-    poly1d_fn = np.poly1d(coef) - 2
-    diff = PROFILE - poly1d_fn(x)
+## baseline with polynimial interpolation
+def baseline_profile_polyn(PROFILE):
+
+    x = []
+    for i in range(len(PROFILE)): x.append(i)
+
+    coef = np.polyfit(x,PROFILE,3)
+    poly_fn = np.poly1d(coef)
+    baseline = poly_fn(x)
    
-    return poly1d_fn(X_ARRAY), diff
+    return baseline
 
+## baseline with ALS
+def baseline_profile_als(PROFILE):
 
+    baseline = als(PROFILE, lam=1e6, itermax=5)
+    
+    return baseline
+
+## baseline with wavelet
+def baseline_profile_wavelet(PROFILE):
+
+    wavelet_type = 'db6'
+    coeffs_wavelet = pywt.wavedec(PROFILE, wavelet_type, level = 7)
+    baseline_coeffs = coeffs_wavelet.copy()
+
+    # cancels every component with a degree greater than 0 
+    for index,_ in enumerate(baseline_coeffs):
+        if index != 0:
+            baseline_coeffs[index] = 0*baseline_coeffs[index]
+
+    baseline = pywt.waverec(baseline_coeffs, wavelet_type)
+
+    return baseline
+
+def baseline_correction(BASELINE_ENGINE, PROFILE):
+    if str(BASELINE_ENGINE) == 'poly': baseline = baseline_profile_polyn(PROFILE)
+    elif str(BASELINE_ENGINE) == 'als': baseline =  baseline_profile_wavelet(PROFILE)
+    elif str(BASELINE_ENGINE) == 'wave': baseline = baseline_profile_als(PROFILE)
+    else: print("Error: baseline engine wrong, set correct name in config.ini")
+    
+    return baseline
+
+####################################################
+## CONVERT MATRIX ACQUISITION IN GREY SCALE IMAGE ##
+####################################################
+
+## detect min, max e avg values on array
 def min_max(ARRAY):
     ## min 
     MIN = np.min(ARRAY)
