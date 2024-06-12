@@ -2,12 +2,27 @@
 import cv2
 import numpy as np
 import easyocr
+import pytesseract
+from pytesseract import Output
+import os 
 
 reader = easyocr.Reader(['en'], gpu=True) 
 
 font = cv2.FONT_HERSHEY_SIMPLEX
 
-def dot_bbox_detect(IMAGE_SCAN,TILE_SIZE):
+##########################################
+## function to create dirs if not exit ##
+##########################################
+def create_dirs(ARRAY_PATH):
+    for  i in ARRAY_PATH:
+        if not os.path.exists(i):
+            os.makedirs(i, exist_ok=True)
+
+##################
+## function OCR ##
+##################
+## easyOCR as engine OCR
+def dot_text_bbox_detect_easyocr(IMAGE_SCAN,TILE_SIZE):
     _,cols_image_scan,_ = IMAGE_SCAN.shape
     TILES = []
     RESULTS_OCR = []
@@ -31,21 +46,53 @@ def dot_bbox_detect(IMAGE_SCAN,TILE_SIZE):
                 bbox,text,_ = elem
                 print(elem)
                 if text == "DOT": 
-                    print(f'index tile {i} -- {text} -- bbox {bbox} ') 
+                    #print(f'index tile {i} -- {text} -- bbox {bbox} ') 
                     index = i
                     run = False
         i += 1
 
     return text,bbox,stride,index
 
+## tesseract as engine OCR
+def dot_text_bbox_detect_tesseract(IMAGE_SCAN,TILE_SIZE):
+    _,cols_image_scan,_ = IMAGE_SCAN.shape
+    TILES = []
+    RESULTS_OCR = []
 
+    stride = TILE_SIZE//2
+    num_tiles = cols_image_scan//TILE_SIZE
+
+    ## while ritorna il numero del tile contenente la scritta DOT
+    ## indice = numero_tile - 1
+    i = 0
+    text = ""
+    run = True
+    
+    while i <= num_tiles*2-1 and run == True:
+        TILES.append(IMAGE_SCAN[:,stride*i:TILE_SIZE+stride*i,:])
+        d = pytesseract.image_to_data(TILES[i], output_type=Output.DICT)
+        
+        n_boxes = len(d['level'])
+        for elem in range(n_boxes):
+            if d['text'][elem] == 'DOT':
+                text = d['text'][elem]
+                (x, y, w, h) = (d['left'][elem], d['top'][elem], d['width'][elem], d['height'][elem])
+                bbox = np.array([[x,y],[x+w,y],[x+w,y+h],[x,y+h]])
+                index = i
+                run = False
+        i += 1
+
+    return text,bbox,stride,index
+
+#######################################
+## draw rectangle and text above DOT ##
+#######################################
 def draw_bbox_text (IMAGE,TEXT,DOT_DETECT_PATH,X_ASSOLUTE_PATH_TOP_LEFT,Y_ASSOLUTE_PATH_TOP_LEFT,X_ASSOLUTE_PATH_BOTTOM_RIGHT,Y_ASSOLUTE_PATH_BOTTOM_RIGHT):
 
-    ## disegna bbox attorno a DOT
+    ## draw bbox 
     cv2.rectangle(IMAGE, (X_ASSOLUTE_PATH_TOP_LEFT,Y_ASSOLUTE_PATH_TOP_LEFT), (X_ASSOLUTE_PATH_BOTTOM_RIGHT,Y_ASSOLUTE_PATH_BOTTOM_RIGHT), color=(0,255,0), thickness=3)
     image_scan_bbox = IMAGE.copy()
-    ## scrivere l'OCR DOT 
+    ## write text 
     cv2.putText(image_scan_bbox, TEXT, (X_ASSOLUTE_PATH_TOP_LEFT+10,Y_ASSOLUTE_PATH_TOP_LEFT-20), font, 3,(0,0,255),3,cv2.LINE_AA)
-
-    ## salva immagine con bbox e OCR
+    ## save image with bbox and text
     cv2.imwrite(DOT_DETECT_PATH, image_scan_bbox)
