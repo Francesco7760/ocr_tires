@@ -1,10 +1,14 @@
 
+import configparser as cp
 import cv2
 import numpy as np
 import easyocr
 import pytesseract
 from pytesseract import Output
 import os 
+
+config = cp.ConfigParser()
+config.read(r'config.ini')
 
 reader = easyocr.Reader(['en'], gpu=True) 
 
@@ -30,23 +34,19 @@ def dot_text_bbox_detect_easyocr(IMAGE_SCAN,TILE_SIZE):
     stride = TILE_SIZE//2
     num_tiles = cols_image_scan//TILE_SIZE
 
-    ## while ritorna il numero del tile contenente la scritta DOT
-    ## indice = numero_tile - 1
     i = 0
     text = ""
     run = True
     
     while i <= num_tiles*2-1 and run == True:
         TILES.append(IMAGE_SCAN[:,stride*i:TILE_SIZE+stride*i,:])
-        RESULTS_OCR.append(reader.readtext(TILES[i], allowlist = "QWERTYUIPASDOFGHJKLZXCVBNM123456789"))
+        RESULTS_OCR.append(reader.readtext(TILES[i], 
+                                           allowlist = config.get('easyocr','char_allows_list')))
         
-        ## considera solo i risultati del OCR
         if len(RESULTS_OCR[i]) != 0: 
             for elem in RESULTS_OCR[i]:
                 bbox,text,_ = elem
-                print(elem)
-                if text == "DOT": 
-                    #print(f'index tile {i} -- {text} -- bbox {bbox} ') 
+                if text == "DOT":  
                     index = i
                     run = False
         i += 1
@@ -57,20 +57,21 @@ def dot_text_bbox_detect_easyocr(IMAGE_SCAN,TILE_SIZE):
 def dot_text_bbox_detect_tesseract(IMAGE_SCAN,TILE_SIZE):
     _,cols_image_scan,_ = IMAGE_SCAN.shape
     TILES = []
-    RESULTS_OCR = []
 
     stride = TILE_SIZE//2
     num_tiles = cols_image_scan//TILE_SIZE
 
-    ## while ritorna il numero del tile contenente la scritta DOT
-    ## indice = numero_tile - 1
     i = 0
     text = ""
     run = True
     
     while i <= num_tiles*2-1 and run == True:
         TILES.append(IMAGE_SCAN[:,stride*i:TILE_SIZE+stride*i,:])
-        d = pytesseract.image_to_data(TILES[i], output_type=Output.DICT)
+        d = pytesseract.image_to_data(TILES[i], config= 
+                                      '--psm ' + config.get('tesseract','ts_psm') + 
+                                      ' --oem ' + config.get('tesseract','ts_oem') + 
+                                      ' -c ' + config.get('tesseract','tessedit_char_whitelist')
+                                      ,output_type=Output.DICT)
         
         n_boxes = len(d['level'])
         for elem in range(n_boxes):

@@ -23,11 +23,11 @@ create_dirs([DOT_RESULT_DIR, IMAGE_GREY_DIR, THRESH_DIR])
 ## values extract from config.ini ##
 ####################################
 ## name of file to read or save
-BIN_FILE_NAME = str(config.get('file_name','binary_file_name'))
-CSV_FILE_NAME = str(config.get('file_name','csv_file_name'))
-IMAGE_GREY_SCALE_NAME = str(config.get('file_name','image_grey_scale_name'))
-THRESHOLD_IMAGE_NAME = str(config.get('file_name','trheshold_image_name'))
-DOT_DETECT_NAME = str(config.get('file_name','dot_detect_name'))
+BIN_FILE_NAME = config.get('file_name','binary_file_name')
+CSV_FILE_NAME = config.get('file_name','csv_file_name')
+IMAGE_GREY_SCALE_NAME = config.get('file_name','image_grey_scale_name')
+THRESHOLD_IMAGE_NAME = config.get('file_name','trheshold_image_name')
+DOT_DETECT_NAME = config.get('file_name','dot_detect_name')
 ## parameters of acquisition
 POINTS_IN_PROFILE = int(config.get('general','points_profile'))
 NUM_PROFILE = int(config.get('general','lines_count_acquisition'))
@@ -50,7 +50,7 @@ array_imputate = imputate(ARRAY=array_cropped)
 
 ## create baseline 
 INDEX_PROFILE = int(config.get('general', 'index_profile_zero'))
-BASELINE = baseline_correction(str(config.get('general', 'baseline_engine'))
+BASELINE = baseline_correction(config.get('general', 'baseline_engine')
                                ,ARRAY=array_imputate[INDEX_PROFILE])
 
 ## render image from baseline 
