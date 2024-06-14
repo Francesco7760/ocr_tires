@@ -52,18 +52,6 @@ def imputate (ARRAY):
 ## BASELINE CORRECTION ##
 #########################
 
-## baseline with polynimial interpolation
-def baseline_profile_polyn(PROFILE):
-
-    x = []
-    for i in range(len(PROFILE)): x.append(i)
-
-    coef = np.polyfit(x,PROFILE,3)
-    poly_fn = np.poly1d(coef)
-    baseline = poly_fn(x)
-   
-    return baseline
-
 ## baseline with ALS
 def baseline_profile_als(PROFILE):
 
@@ -88,15 +76,14 @@ def baseline_profile_wavelet(PROFILE):
     return baseline
 
 def baseline_correction(BASELINE_ENGINE, PROFILE):
-    if str(BASELINE_ENGINE) == 'poly': baseline = baseline_profile_polyn(PROFILE)
-    elif str(BASELINE_ENGINE) == 'als': baseline =  baseline_profile_wavelet(PROFILE)
+    if str(BASELINE_ENGINE) == 'als': baseline =  baseline_profile_wavelet(PROFILE)
     elif str(BASELINE_ENGINE) == 'wave': baseline = baseline_profile_als(PROFILE)
     else: print("Error: baseline engine wrong, set correct name in config.ini")
     
     return baseline
 
 ####################################################
-## CONVERT MATRIX ACQUISITION IN GREY SCALE IMAGE ##
+## CONVERT MATRIX ACQUISITION IN GRAY SCALE IMAGE ##
 ####################################################
 
 ## detect min, max e avg values on array
@@ -110,9 +97,9 @@ def min_max(ARRAY):
 
     return MIN,MAX,AVG
 
-# convert matrix in grey scale
+# convert matrix in gray scale
 @njit(target_backend='cuda')
-def convert_matrix_in_grey_scale(ARRAY,MIN,MAX):
+def convert_matrix_in_gray_scale(ARRAY,MIN,MAX):
 
     array_min_max = []
     for row in ARRAY:
