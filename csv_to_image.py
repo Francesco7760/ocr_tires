@@ -14,16 +14,24 @@ config = cp.ConfigParser()
 config.read(r'config.ini')
 
 ###############################
-## READ CSV AND RETURN ARRAY ##
+## READ CSV, BIN AND RETURN ARRAY ##
 ###############################
 def read_array(PATH):
 
-    ## lavora con csv
+    ## csv
     df = pd.read_csv(PATH, sep=",",header=None)
     array = df.to_numpy()
 
     return np.delete(array, [0,1]),array[0],array[1]
 
+int32 = np.dtype('>i4')
+float32 = np.dtype('>f4')
+
+def read_bin(PATH):
+    with open(PATH, mode='rb') as i:
+        value_0 = np.fromfile(i, dtype=int32, count=2)
+        value_1 = np.fromfile(i, dtype=float32, count=value_0[0]*value_0[1])
+    return value_1
 ################
 ## CROP IMAGE ##
 ################
