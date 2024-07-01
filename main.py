@@ -4,8 +4,8 @@ import cv2
 import os
 
 from csv_to_image import read_array, crop_array, imputate, baseline_correction, min_max, convert_matrix_in_gray_scale
-from detect_DOT import create_dirs, dot_text_bbox_detect_easyocr, draw_bbox_text
-
+from detect_DOT import create_dirs, dot_text_bbox_detect_easyocr, draw_bbox_text, dot_text_bbox_detect_tesseract, dot_text_bbox_detect_easyocr_edges, dot_text_bbox_detect_tesseract_edges
+from morphological_ransformations import pipeline_morphological
 
 config = cp.ConfigParser()
 config.read(r'config.ini')
@@ -76,38 +76,41 @@ MATRIX_GRAY_SCALE_INV_INCREASE = np.clip(MATRIX_GRAY_SCALE_INV*
                                          int(config.get('image_processing','alpha_comtrast')),0,255)
 
 ## threshold adaptive 
-TRHESHOLD_ADAPTIVE = cv2.adaptiveThreshold(MATRIX_GRAY_SCALE_INV_INCREASE,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,55,3)
+TRHESHOLD_ADAPTIVE = cv2.adaptiveThreshold(MATRIX_GRAY_SCALE_INV_INCREASE,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,23,2)
 
 ## save thresh image
 cv2.imwrite(os.path.join(THRESH_DIR,THRESHOLD_IMAGE_NAME)), cv2.rotate(TRHESHOLD_ADAPTIVE, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-#################################################
+#################################################pipeline_morpholocal() = image_enhanced
 ## extract DOT, its writings and its positions ##
 #################################################
-text,bbox,stride,index = dot_text_bbox_detect_easyocr()
 
-## relative positions
-## top - left
-relative_path_top_left = bbox[0]
-x_relative_path_top_left,y_relative_path_top_left = bbox[0] 
-## bottom - right 
-realtive_path_bottom_right = bbox[2]
-x_relative_path_bottom_right,y_relative_path_bottom_right = bbox[2] 
+if (config.get('general','ocr_engine') == 'easyocr' and config.get('general','ocr_system') == 'tiling'):
+    text,x_top_left,y_top_left,x_botom_right,y_bottom_right = dot_text_bbox_detect_easyocr(IMAGE_SCAN=TRHESHOLD_ADAPTIVE,TILE_SIZE=1000)
 
-## assolute positions
-## top - left 
-x_assolute_path_top_left =  x_relative_path_top_left + stride*index
-y_assolute_path_top_left = y_relative_path_top_left
-## bottom - right
-x_assolute_path_bottom_right =  x_relative_path_bottom_right + stride*index
-y_assolute_path_bottom_right = y_relative_path_bottom_right
+elif (config.get('general','ocr_engine') == 'tesseract' and config.get('general','ocr_system') == 'tiling'):
+    text,x_top_left,y_top_left,x_botom_right,y_bottom_right = dot_text_bbox_detect_tesseract(IMAGE_SCAN=TRHESHOLD_ADAPTIVE,TILE_SIZE=1000)
+
+elif (config.get('general','ocr_engine') == 'easyocr' and config.get('general','ocr_system') == 'edges'):
+    image_enhanced = pipeline_morphological(IMG=TRHESHOLD_ADAPTIVE) 
+    
+    text,x_top_left,y_top_left,x_botom_right,y_bottom_right = dot_text_bbox_detect_easyocr_edges(
+        IMAGE_SCAN=TRHESHOLD_ADAPTIVE,IMAGE_ENHANCED=image_enhanced)
+
+elif (config.get('general','ocr_engine') == 'tesseract' and config.get('general','ocr_system') == 'edges'):
+    image_enhanced = pipeline_morphological(IMG=TRHESHOLD_ADAPTIVE)
+    text,x_top_left,y_top_left,x_botom_right,y_bottom_right = dot_text_bbox_detect_tesseract_edges(
+        IMAGE_SCAN=TRHESHOLD_ADAPTIVE,IMAGE_ENHANCED=image_enhanced)
+    
+else: print("Error: wrong ocr setting, set correct name in config.ini")
+    
 
 ###############################
 ## draw text and bbox of DOT ##
 ###############################
 draw_bbox_text(IMAGE = MATRIX_GRAY_SCALE_INV_INCREASE,TEXT = text,
                DOT_DETECT_PATH = os.path.join(DOT_RESULT_DIR,DOT_DETECT_NAME),
-               X_ASSOLUTE_PATH_TOP_LEFT = x_assolute_path_top_left, 
-               Y_ASSOLUTE_PATH_TOP_LEFT = y_assolute_path_top_left,
-               X_ASSOLUTE_PATH_BOTTOM_RIGHT = x_assolute_path_bottom_right,
-               Y_ASSOLUTE_PATH_BOTTOM_RIGHT = y_assolute_path_bottom_right)
+               X_ASSOLUTE_PATH_TOP_LEFT = x_top_left, 
+               Y_ASSOLUTE_PATH_TOP_LEFT = y_top_left,
+               X_ASSOLUTE_PATH_BOTTOM_RIGHT = x_botom_right,
+               Y_ASSOLUTE_PATH_BOTTOM_RIGHT = y_bottom_right)

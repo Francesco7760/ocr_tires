@@ -46,3 +46,7 @@ def skeleton_image(IMAGE_BINARY, BINARY_IMAGE_MODE, METHOD = 'lee'):
 
 
 ## pipeline_result = erode(dilatation(img, kernel=KERNEL, n=2),kernel=KERNEL, n=5)
+def pipeline_morphological(IMG,KERNEL_ERODE=0,KERNEL_DILATATION=8):
+    pipeline_result = 255 - dilatation (erode(255 - IMG,kernel=KERNEL_ERODE, n=0),kernel=KERNEL_DILATATION, n=8)
+    image_enhanced = cv2.cvtColor(pipeline_result, cv2.COLOR_BGR2GRAY) 
+    return image_enhanced
